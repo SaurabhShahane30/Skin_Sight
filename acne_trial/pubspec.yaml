@@ -65,7 +65,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/acne_float16.tflite
-    - assets/wrinkles_model_v8s_float32.tflite
+    - assets/wrinkles_model_v8s_float16.tflite
     - assets/darkspot2_float16.tflite
     - assets/oily_float16.tflite
 

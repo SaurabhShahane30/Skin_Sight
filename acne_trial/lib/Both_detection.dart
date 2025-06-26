@@ -33,7 +33,7 @@ class ModelManager {
     // Wrinkle model config
     _modelConfigs['wrinkle'] = ModelConfig(
       name: 'wrinkle',
-      assetPath: 'assets/wrinkles_model_v8s_float32.tflite',
+      assetPath: 'assets/wrinkles_model_v8s_float16.tflite',
       displayName: 'Wrinkle Detection',
       primaryColor: Colors.orange,
       icon: Icons.face,
