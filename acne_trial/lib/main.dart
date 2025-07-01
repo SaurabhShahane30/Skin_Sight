@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
     )..repeat();
     _initializeModels();
+
   }
 
   Future<void> _initializeModels() async {

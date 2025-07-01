@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math' as math;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'Model_Classes.dart';
+
 
 
 
@@ -131,8 +134,23 @@ class ModelManager {
       interpreter?.close();
     }
     _interpreters.clear();
+    _clearTempImages();
   }
 }
+void _clearTempImages() async {
+  final tempDir = Directory.systemTemp;
+  if (await tempDir.exists()) {
+    final files = tempDir.listSync().whereType<File>().toList();
+    for (var file in files) {
+      if (file.path.endsWith('.jpg') || file.path.endsWith('.png')) {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
+    }
+  }
+}
+
 
 // Updated Detection Screen
 class DetectionScreen extends StatefulWidget {
@@ -175,6 +193,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
     }
   }
 
+
+
   Future<void> _takePhoto() async {
     if (_isProcessing) return;
 
@@ -191,6 +211,73 @@ class _DetectionScreenState extends State<DetectionScreen> {
         _detections = [];
         _status = 'Image captured. Tap "Analyze" to detect.';
       });
+    }
+  }
+  Future<bool> _requestPermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 33) {
+        final photos = await Permission.photos.request(); // Android 13+
+        return photos.isGranted;
+      } else {
+        final storage = await Permission.storage.request(); // Android <13
+        return storage.isGranted;
+      }
+    }
+    return true; // iOS or other platforms
+  }
+
+  Future<void> _loadBluetoothImage() async {
+    if (_isProcessing) return;
+
+    setState(() => _status = 'Requesting permissions...');
+
+    // ✅ Step 1: Check storage/media permissions
+    final bool granted = await _requestPermission();
+    if (!granted) {
+      setState(() => _status = 'Permission denied. Please enable in app settings.');
+      await openAppSettings();
+      return;
+    }
+
+    setState(() => _status = 'Scanning Bluetooth folder...');
+
+    // ✅ Step 2: Search Bluetooth and Download folders
+    final possibleDirs = [
+      Directory('/storage/emulated/0/Bluetooth/'),
+      Directory('/storage/emulated/0/Download/'),
+    ];
+
+    List<File> imageFiles = [];
+
+    for (var dir in possibleDirs) {
+      if (await dir.exists()) {
+        final files = dir
+            .listSync()
+            .whereType<File>()
+            .where((file) =>
+        file.path.toLowerCase().endsWith('.jpg') ||
+            file.path.toLowerCase().endsWith('.jpeg') ||
+            file.path.toLowerCase().endsWith('.png'))
+            .toList();
+        imageFiles.addAll(files);
+      }
+    }
+
+    if (imageFiles.isNotEmpty) {
+      imageFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      final File latest = imageFiles.first;
+
+      setState(() {
+        _selectedImage = latest;
+        _annotatedImage = null;
+        _detections = [];
+        _status = 'Bluetooth image loaded. Tap "Analyze" to detect.';
+      });
+    } else {
+      setState(() => _status = 'No image found in Bluetooth or Download folder.');
     }
   }
 
@@ -333,7 +420,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
     return unionArea > 0 ? interArea / unionArea : 0;
   }
 
-  Future<File> _createAnnotatedImage(File originalFile, List<Detection> detections) async {
+  Future<File?> _createAnnotatedImage(File originalFile, List<Detection> detections) async {
     final bytes = await originalFile.readAsBytes();
     img.Image? image = img.decodeImage(bytes);
 
@@ -354,11 +441,21 @@ class _DetectionScreenState extends State<DetectionScreen> {
       );
     }
 
-    // Save annotated image
-    final annotatedPath = '${originalFile.parent.path}/annotated_${DateTime.now().millisecondsSinceEpoch}.png';
+    // Encode as PNG and write to temp file
     final annotatedBytes = Uint8List.fromList(img.encodePng(image));
-    return await File(annotatedPath).writeAsBytes(annotatedBytes);
+    final tempDir = Directory.systemTemp;
+    final tempPath = '${tempDir.path}/annotated.png';
+    final tempFile = await File(tempPath).writeAsBytes(annotatedBytes);
+
+    // ✅ Print file size
+    final fileSizeBytes = await tempFile.length();
+    final fileSizeKB = fileSizeBytes / 1024;
+    print("📏 Annotated image size: ${fileSizeKB.toStringAsFixed(2)} KB");
+
+    return tempFile;
   }
+
+
 
   String _getResultMessage(int count) {
     if (count == 0) {
@@ -446,7 +543,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
                     ),
                   ),
                 ),
-                SizedBox(width: 12),
+                SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _takePhoto,
@@ -459,8 +556,22 @@ class _DetectionScreenState extends State<DetectionScreen> {
                     ),
                   ),
                 ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _loadBluetoothImage,
+                    icon: Icon(Icons.bluetooth),
+                    label: Text('Bluetooth'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
               ],
             ),
+
 
             SizedBox(height: 16),
 
