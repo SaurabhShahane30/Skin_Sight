@@ -39,6 +39,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Timer? _imageMonitorTimer;
   String? _lastProcessedImagePath;
   bool _isCropping = false;
+  bool _monitoringPaused = false;
+
 
   @override
   void initState() {
@@ -323,14 +325,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {
           _receivedImagePath = latestImagePath;
           _lastProcessedImagePath = latestImagePath;
+          _monitoringPaused = true;
         });
 
-        print('New image detected: $latestImagePath');
+        // Stop auto monitoring
+        _imageMonitorTimer?.cancel();
 
-        // Optional: Process the image automatically
-        // You can call your image processing function here
-        // _processImageForAcneDetection(latestImagePath);
+        print('New image detected and monitoring paused: $latestImagePath');
       }
+
     } catch (e) {
       print('Error loading latest image: $e');
     }
@@ -976,6 +979,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     ),
                                   ],
                                 ),
+                                if (_monitoringPaused)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            _monitoringPaused = false;
+                                            _receivedImagePath = null;
+                                            _lastProcessedImagePath = null;
+                                          });
+                                          _startImageMonitoring();
+                                        },
+                                        icon: Icon(Icons.refresh, color: Color(0xFF8B4B7A)),
+                                        label: Text(
+                                          "Load Latest Image",
+                                          style: TextStyle(color: Color(0xFF8B4B7A)),
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
                               ],
                             )
                                 : Column(
