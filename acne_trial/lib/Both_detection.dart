@@ -155,12 +155,17 @@ void _clearTempImages() async {
 // Updated Detection Screen
 class DetectionScreen extends StatefulWidget {
   final String modelKey;
+  final File imagePath; // 📸 image taken on Home Page
 
-  DetectionScreen({required this.modelKey});
+  DetectionScreen({
+    required this.modelKey,
+    required this.imagePath,
+  });
 
   @override
   _DetectionScreenState createState() => _DetectionScreenState();
 }
+
 
 class _DetectionScreenState extends State<DetectionScreen> {
   File? _selectedImage;
@@ -174,112 +179,126 @@ class _DetectionScreenState extends State<DetectionScreen> {
   String get _title => _modelConfig?.displayName ?? 'Detection';
   Color get _primaryColor => _modelConfig?.primaryColor ?? Colors.blue;
 
-  Future<void> _pickImage() async {
-    if (_isProcessing) return;
+  @override
+  void initState() {
+    super.initState();
 
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
+    _selectedImage = widget.imagePath;
+    _annotatedImage = null;
+    _detections = [];
+    _status = 'Image received. Running analysis...';
 
-    if (image != null) {
-      setState(() {
-        _selectedImage = File(image.path);
-        _annotatedImage = null;
-        _detections = [];
-        _status = 'Image selected. Tap "Analyze" to detect.';
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _runDetection(); // 🔁 Automatically analyze the image
+    });
   }
 
-
-
-  Future<void> _takePhoto() async {
-    if (_isProcessing) return;
-
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 80,
-    );
-
-    if (image != null) {
-      setState(() {
-        _selectedImage = File(image.path);
-        _annotatedImage = null;
-        _detections = [];
-        _status = 'Image captured. Tap "Analyze" to detect.';
-      });
-    }
-  }
-  Future<bool> _requestPermission() async {
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      final sdkInt = androidInfo.version.sdkInt;
-
-      if (sdkInt >= 33) {
-        final photos = await Permission.photos.request(); // Android 13+
-        return photos.isGranted;
-      } else {
-        final storage = await Permission.storage.request(); // Android <13
-        return storage.isGranted;
-      }
-    }
-    return true; // iOS or other platforms
-  }
-
-  Future<void> _loadBluetoothImage() async {
-    if (_isProcessing) return;
-
-    setState(() => _status = 'Requesting permissions...');
-
-    // ✅ Step 1: Check storage/media permissions
-    final bool granted = await _requestPermission();
-    if (!granted) {
-      setState(() => _status = 'Permission denied. Please enable in app settings.');
-      await openAppSettings();
-      return;
-    }
-
-    setState(() => _status = 'Scanning Bluetooth folder...');
-
-    // ✅ Step 2: Search Bluetooth and Download folders
-    final possibleDirs = [
-      Directory('/storage/emulated/0/Bluetooth/'),
-      Directory('/storage/emulated/0/Download/'),
-    ];
-
-    List<File> imageFiles = [];
-
-    for (var dir in possibleDirs) {
-      if (await dir.exists()) {
-        final files = dir
-            .listSync()
-            .whereType<File>()
-            .where((file) =>
-        file.path.toLowerCase().endsWith('.jpg') ||
-            file.path.toLowerCase().endsWith('.jpeg') ||
-            file.path.toLowerCase().endsWith('.png'))
-            .toList();
-        imageFiles.addAll(files);
-      }
-    }
-
-    if (imageFiles.isNotEmpty) {
-      imageFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-      final File latest = imageFiles.first;
-
-      setState(() {
-        _selectedImage = latest;
-        _annotatedImage = null;
-        _detections = [];
-        _status = 'Bluetooth image loaded. Tap "Analyze" to detect.';
-      });
-    } else {
-      setState(() => _status = 'No image found in Bluetooth or Download folder.');
-    }
-  }
+  // Future<void> _pickImage() async {
+  //   if (_isProcessing) return;
+  //
+  //   final ImagePicker picker = ImagePicker();
+  //   final XFile? image = await picker.pickImage(
+  //     source: ImageSource.gallery,
+  //     imageQuality: 80,
+  //   );
+  //
+  //   if (image != null) {
+  //     setState(() {
+  //       _selectedImage = File(image.path);
+  //       _annotatedImage = null;
+  //       _detections = [];
+  //       _status = 'Image selected. Tap "Analyze" to detect.';
+  //     });
+  //   }
+  // }
+  //
+  //
+  //
+  // Future<void> _takePhoto() async {
+  //   if (_isProcessing) return;
+  //
+  //   final ImagePicker picker = ImagePicker();
+  //   final XFile? image = await picker.pickImage(
+  //     source: ImageSource.camera,
+  //     imageQuality: 80,
+  //   );
+  //
+  //   if (image != null) {
+  //     setState(() {
+  //       _selectedImage = File(image.path);
+  //       _annotatedImage = null;
+  //       _detections = [];
+  //       _status = 'Image captured. Tap "Analyze" to detect.';
+  //     });
+  //   }
+  // }
+  // Future<bool> _requestPermission() async {
+  //   if (Platform.isAndroid) {
+  //     final androidInfo = await DeviceInfoPlugin().androidInfo;
+  //     final sdkInt = androidInfo.version.sdkInt;
+  //
+  //     if (sdkInt >= 33) {
+  //       final photos = await Permission.photos.request(); // Android 13+
+  //       return photos.isGranted;
+  //     } else {
+  //       final storage = await Permission.storage.request(); // Android <13
+  //       return storage.isGranted;
+  //     }
+  //   }
+  //   return true; // iOS or other platforms
+  // }
+  //
+  // Future<void> _loadBluetoothImage() async {
+  //   if (_isProcessing) return;
+  //
+  //   setState(() => _status = 'Requesting permissions...');
+  //
+  //   // ✅ Step 1: Check storage/media permissions
+  //   final bool granted = await _requestPermission();
+  //   if (!granted) {
+  //     setState(() => _status = 'Permission denied. Please enable in app settings.');
+  //     await openAppSettings();
+  //     return;
+  //   }
+  //
+  //   setState(() => _status = 'Scanning Bluetooth folder...');
+  //
+  //   // ✅ Step 2: Search Bluetooth and Download folders
+  //   final possibleDirs = [
+  //     Directory('/storage/emulated/0/Bluetooth/'),
+  //     Directory('/storage/emulated/0/Download/'),
+  //   ];
+  //
+  //   List<File> imageFiles = [];
+  //
+  //   for (var dir in possibleDirs) {
+  //     if (await dir.exists()) {
+  //       final files = dir
+  //           .listSync()
+  //           .whereType<File>()
+  //           .where((file) =>
+  //       file.path.toLowerCase().endsWith('.jpg') ||
+  //           file.path.toLowerCase().endsWith('.jpeg') ||
+  //           file.path.toLowerCase().endsWith('.png'))
+  //           .toList();
+  //       imageFiles.addAll(files);
+  //     }
+  //   }
+  //
+  //   if (imageFiles.isNotEmpty) {
+  //     imageFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+  //     final File latest = imageFiles.first;
+  //
+  //     setState(() {
+  //       _selectedImage = latest;
+  //       _annotatedImage = null;
+  //       _detections = [];
+  //       _status = 'Bluetooth image loaded. Tap "Analyze" to detect.';
+  //     });
+  //   } else {
+  //     setState(() => _status = 'No image found in Bluetooth or Download folder.');
+  //   }
+  // }
 
   Future<void> _runDetection() async {
     if (_selectedImage == null || _isProcessing || _modelConfig == null) return;
@@ -287,6 +306,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
     setState(() {
       _isProcessing = true;
       _status = 'Analyzing image...';
+      _annotatedImage=null;
     });
 
     try {
@@ -441,20 +461,18 @@ class _DetectionScreenState extends State<DetectionScreen> {
       );
     }
 
-    // Encode as PNG and write to temp file
+    // ✅ Use unique filename
     final annotatedBytes = Uint8List.fromList(img.encodePng(image));
     final tempDir = Directory.systemTemp;
-    final tempPath = '${tempDir.path}/annotated.png';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final tempPath = '${tempDir.path}/annotated_$timestamp.png'; // 👈 Unique name
     final tempFile = await File(tempPath).writeAsBytes(annotatedBytes);
 
-    // ✅ Print file size
-    final fileSizeBytes = await tempFile.length();
-    final fileSizeKB = fileSizeBytes / 1024;
+    final fileSizeKB = await tempFile.length() / 1024;
     print("📏 Annotated image size: ${fileSizeKB.toStringAsFixed(2)} KB");
 
     return tempFile;
   }
-
 
 
   String _getResultMessage(int count) {
@@ -529,76 +547,76 @@ class _DetectionScreenState extends State<DetectionScreen> {
             SizedBox(height: 20),
 
             // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImage,
-                    icon: Icon(Icons.photo_library),
-                    label: Text('Gallery'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _takePhoto,
-                    icon: Icon(Icons.camera_alt),
-                    label: Text('Camera'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _loadBluetoothImage,
-                    icon: Icon(Icons.bluetooth),
-                    label: Text('Bluetooth'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            // Row(
+            //   children: [
+            //     Expanded(
+            //       child: ElevatedButton.icon(
+            //         onPressed: _pickImage,
+            //         icon: Icon(Icons.photo_library),
+            //         label: Text('Gallery'),
+            //         style: ElevatedButton.styleFrom(
+            //           backgroundColor: Colors.blue,
+            //           foregroundColor: Colors.white,
+            //           padding: EdgeInsets.symmetric(vertical: 12),
+            //         ),
+            //       ),
+            //     ),
+            //     SizedBox(width: 8),
+            //     Expanded(
+            //       child: ElevatedButton.icon(
+            //         onPressed: _takePhoto,
+            //         icon: Icon(Icons.camera_alt),
+            //         label: Text('Camera'),
+            //         style: ElevatedButton.styleFrom(
+            //           backgroundColor: Colors.green,
+            //           foregroundColor: Colors.white,
+            //           padding: EdgeInsets.symmetric(vertical: 12),
+            //         ),
+            //       ),
+            //     ),
+            //     SizedBox(width: 8),
+            //     Expanded(
+            //       child: ElevatedButton.icon(
+            //         onPressed: _loadBluetoothImage,
+            //         icon: Icon(Icons.bluetooth),
+            //         label: Text('Bluetooth'),
+            //         style: ElevatedButton.styleFrom(
+            //           backgroundColor: Colors.indigo,
+            //           foregroundColor: Colors.white,
+            //           padding: EdgeInsets.symmetric(vertical: 12),
+            //         ),
+            //       ),
+            //     ),
+            //   ],
+            // ),
 
 
             SizedBox(height: 16),
-
-            // Analyze button
-            Container(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _selectedImage != null && !_isProcessing ? _runDetection : null,
-                icon: _isProcessing
-                    ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-                    : Icon(Icons.analytics),
-                label: Text(_isProcessing ? 'Analyzing...' : 'Analyze Image'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
+            //
+            // // Analyze button
+            // Container(
+            //   width: double.infinity,
+            //   child: ElevatedButton.icon(
+            //     onPressed: _selectedImage != null && !_isProcessing ? _runDetection : null,
+            //     icon: _isProcessing
+            //         ? SizedBox(
+            //       width: 20,
+            //       height: 20,
+            //       child: CircularProgressIndicator(
+            //         strokeWidth: 2,
+            //         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            //       ),
+            //     )
+            //         : Icon(Icons.analytics),
+            //     label: Text(_isProcessing ? 'Analyzing...' : 'Analyze Image'),
+            //     style: ElevatedButton.styleFrom(
+            //       backgroundColor: _primaryColor,
+            //       foregroundColor: Colors.white,
+            //       padding: EdgeInsets.symmetric(vertical: 16),
+            //       textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            //     ),
+            //   ),
+            // ),
 
             SizedBox(height: 20),
 
@@ -670,97 +688,97 @@ class _DetectionScreenState extends State<DetectionScreen> {
   }
 }
 
-// Model selection screen
-class ModelSelectionScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final availableModels = ModelManager.getAvailableModelConfigs();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Skin Analysis'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Choose Analysis Type',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Select the type of skin analysis you want to perform',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            SizedBox(height: 24),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: availableModels.length,
-                itemBuilder: (context, index) {
-                  final model = availableModels[index];
-                  return Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DetectionScreen(modelKey: model.name),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              model.icon,
-                              size: 48,
-                              color: model.primaryColor,
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              model.displayName,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade800,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// // Model selection screen
+// class ModelSelectionScreen extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     final availableModels = ModelManager.getAvailableModelConfigs();
+//
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: Text('Skin Analysis'),
+//         backgroundColor: Colors.teal,
+//         foregroundColor: Colors.white,
+//       ),
+//       body: Padding(
+//         padding: EdgeInsets.all(16),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               'Choose Analysis Type',
+//               style: TextStyle(
+//                 fontSize: 24,
+//                 fontWeight: FontWeight.bold,
+//                 color: Colors.grey.shade800,
+//               ),
+//             ),
+//             SizedBox(height: 8),
+//             Text(
+//               'Select the type of skin analysis you want to perform',
+//               style: TextStyle(
+//                 fontSize: 16,
+//                 color: Colors.grey.shade600,
+//               ),
+//             ),
+//             SizedBox(height: 24),
+//             Expanded(
+//               child: GridView.builder(
+//                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+//                   crossAxisCount: 2,
+//                   crossAxisSpacing: 16,
+//                   mainAxisSpacing: 16,
+//                   childAspectRatio: 1.2,
+//                 ),
+//                 itemCount: availableModels.length,
+//                 itemBuilder: (context, index) {
+//                   final model = availableModels[index];
+//                   return Card(
+//                     elevation: 4,
+//                     shape: RoundedRectangleBorder(
+//                       borderRadius: BorderRadius.circular(12),
+//                     ),
+//                     child: InkWell(
+//                       onTap: () {
+//                         Navigator.push(
+//                           context,
+//                           MaterialPageRoute(
+//                             builder: (context) => DetectionScreen(modelKey: model.name),
+//                           ),
+//                         );
+//                       },
+//                       borderRadius: BorderRadius.circular(12),
+//                       child: Padding(
+//                         padding: EdgeInsets.all(16),
+//                         child: Column(
+//                           mainAxisAlignment: MainAxisAlignment.center,
+//                           children: [
+//                             Icon(
+//                               model.icon,
+//                               size: 48,
+//                               color: model.primaryColor,
+//                             ),
+//                             SizedBox(height: 12),
+//                             Text(
+//                               model.displayName,
+//                               style: TextStyle(
+//                                 fontSize: 16,
+//                                 fontWeight: FontWeight.w600,
+//                                 color: Colors.grey.shade800,
+//                               ),
+//                               textAlign: TextAlign.center,
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                     ),
+//                   );
+//                 },
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
