@@ -1,11 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math' as math;
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'Model_Classes.dart';
 
@@ -172,6 +169,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
   File? _annotatedImage;
   List<Detection> _detections = [];
   bool _isProcessing = false;
+  bool _detectionInProgress = true;
   String _status = 'No image selected';
 
   ModelConfig? get _modelConfig => ModelManager.getModelConfig(widget.modelKey);
@@ -186,12 +184,34 @@ class _DetectionScreenState extends State<DetectionScreen> {
     _selectedImage = widget.imagePath;
     _annotatedImage = null;
     _detections = [];
-    _status = 'Image received. Running analysis...';
+    _status = 'Preparing detection...';
+    _detectionInProgress = true;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _runDetection(); // 🔁 Automatically analyze the image
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final model = ModelManager.getModel(widget.modelKey);
+
+      if (model == null) {
+        print("⚠️ Model not yet loaded: ${widget.modelKey}");
+        setState(() {
+          _status = 'Loading model...';
+        });
+
+        await ModelManager.loadModel(widget.modelKey);
+      }
+
+      setState(() {
+        _status = 'Running analysis...';
+      });
+
+      await _runDetection();
+
+      // ✅ Once detection is complete
+      setState(() {
+        _detectionInProgress = false;
+      });
     });
   }
+
 
   // Future<void> _pickImage() async {
   //   if (_isProcessing) return;
@@ -485,6 +505,118 @@ class _DetectionScreenState extends State<DetectionScreen> {
     }
   }
 
+  String _getSkinTypeHeading() {
+    if (_modelConfig?.name == 'oily_skin' && _detections.isNotEmpty) {
+      final label = _detections.first.label;
+      return 'Detected Skin Type: ${label[0].toUpperCase()}${label.substring(1)}';
+    } else {
+      return _getResultMessage(_detections.length);
+    }
+  }
+
+
+
+  String _generateSkinSummary() {
+    if (_detectionInProgress) {
+      return 'Analyzing skin... Please wait.';
+    }
+
+    if (_detections.isEmpty) {
+      return 'No skin issues detected. Your skin looks healthy and well-maintained. Keep up with your current skincare routine and stay hydrated!';
+    }
+
+    Map<String, int> counts = {};
+    for (var d in _detections) {
+      print('🔍 Detection label: "${d.label}"');
+      final normalizedLabel = d.label.trim().toLowerCase(); // normalize casing
+      counts[normalizedLabel] = (counts[normalizedLabel] ?? 0) + 1;
+    }
+
+
+    StringBuffer summary = StringBuffer();
+
+    // Acne-specific example
+    int acneCount = counts['acne'] ?? 0;
+    if (acneCount > 0) {
+      if (acneCount < 5) {
+        summary.writeln('Mild acne detected ($acneCount spots). Consider using a gentle cleanser and non-comedogenic moisturizer.');
+      } else if (acneCount < 15) {
+        summary.writeln('Moderate acne detected ($acneCount spots). You may benefit from salicylic acid or benzoyl peroxide treatments.');
+      } else {
+        summary.writeln('Severe acne detected ($acneCount spots). It’s recommended to consult a dermatologist for tailored treatment.');
+      }
+    }
+
+    // Wrinkle-specific example
+    int wrinkleCount = counts['wrinkle'] ?? 0;
+    if (wrinkleCount > 0) {
+      if (wrinkleCount < 5) {
+        summary.writeln('Mild wrinkles detected ($wrinkleCount lines). Early signs of aging are visible—use a daily moisturizer and apply SPF regularly to slow progression.');
+      } else if (wrinkleCount < 15) {
+        summary.writeln('Moderate wrinkles detected ($wrinkleCount lines). Consider incorporating retinol or peptide-based creams into your nighttime routine.');
+      } else {
+        summary.writeln('Severe wrinkles detected ($wrinkleCount lines). You may benefit from consulting a dermatologist for advanced treatments like chemical peels or microneedling.');
+      }
+    }
+
+
+
+    // Dark spot-specific example
+    int darkSpotCount = counts['dark spot'] ?? 0;
+    if (darkSpotCount > 0) {
+      if (darkSpotCount < 5) {
+        summary.writeln(
+            'Mild pigmentation detected ($darkSpotCount dark spot${darkSpotCount >
+                1
+                ? 's'
+                : ''}). Consider using products with vitamin C or niacinamide to maintain an even tone.');
+      } else if (darkSpotCount < 15) {
+        summary.writeln(
+            'Moderate dark spots detected ($darkSpotCount). Targeted treatments like AHAs, retinoids, or brightening serums can help reduce pigmentation over time.');
+      } else {
+        summary.writeln(
+            'Severe dark spot presence detected ($darkSpotCount). You may benefit from consulting a dermatologist about advanced options like chemical peels or laser therapy.');
+      }
+    }
+
+    Detection? oilySkinDetection;
+
+    for (final d in _detections) {
+      final label = d.label.trim().toLowerCase();
+      if (['dry', 'normal', 'oily', 'sensitive'].contains(label)) {
+        oilySkinDetection = d;
+        break;
+      }
+
+    }
+
+
+    if (oilySkinDetection != null) {
+      final label = oilySkinDetection.label.trim().toLowerCase();
+      final conf = (oilySkinDetection.confidence * 100).toStringAsFixed(1);
+
+      switch (label) {
+        case 'dry':
+          summary.writeln('Your skin is classified as Dry ($conf% confidence). Use hydrating moisturizers, avoid alcohol-based products, and apply a gentle cleanser.');
+          break;
+        case 'normal':
+          summary.writeln('Your skin is classified as Normal ($conf% confidence). Maintain your routine with mild products to keep it balanced and healthy.');
+          break;
+        case 'oily':
+          summary.writeln('Your skin is classified as Oily ($conf% confidence). Consider using non-comedogenic products, mattifying moisturizers, and cleansing twice daily.');
+          break;
+        case 'sensitive':
+          summary.writeln('Your skin is classified as Sensitive ($conf% confidence). Use fragrance-free, hypoallergenic products and avoid harsh exfoliants.');
+          break;
+      }
+    }
+
+
+
+    return summary.toString().trim();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -623,61 +755,64 @@ class _DetectionScreenState extends State<DetectionScreen> {
             // Status and results
             Container(
               width: double.infinity,
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(20),
+              margin: EdgeInsets.only(top: 12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.pink.shade100),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.pink.shade50,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
-              child: Column(
+              child: _detectionInProgress
+                  ? Column(
                 children: [
                   Text(
-                    _status,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade700,
-                    ),
-                    textAlign: TextAlign.center,
+                    "Analyzing skin... Please wait.",
+                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                   ),
-                  if (_detections.isNotEmpty) ...[
-                    SizedBox(height: 12),
-                    Divider(),
-                    SizedBox(height: 8),
-                    Text(
-                      'Detection Details',
+                  SizedBox(height: 10),
+                  CircularProgressIndicator(),
+                ],
+              )
+                  :Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Text(
+                      _getSkinTypeHeading(),
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Colors.black87,
                       ),
                     ),
-                    SizedBox(height: 8),
-                    ..._detections.asMap().entries.map((entry) {
-                      final index = entry.key + 1;
-                      final detection = entry.value;
-                      return Padding(
-                        padding: EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: detection.color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              '$index. ${detection.label} (${(detection.confidence * 100).toStringAsFixed(1)}%)',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
+                  ),
+                  SizedBox(height: 8),
+                  Divider(thickness: 1.2, color: Colors.grey.shade300),
+                  SizedBox(height: 12),
+                  Text(
+                    'Summary',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.pink.shade400,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    _generateSkinSummary(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade800,
+                      height: 1.5,
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -92,7 +92,7 @@ class AcneDetectionParser implements DetectionParser {
 }
 
 // Wrinkle detection parser
-// Wrinkle detection parser
+
 class WrinkleDetectionParser implements DetectionParser {
   @override
   List<Detection> parseOutput(dynamic output, int origWidth, int origHeight, ModelConfig config) {
@@ -271,7 +271,7 @@ class WrinkleDetectionParser implements DetectionParser {
                   width: pixelWidth,
                   height: pixelHeight,
                   confidence: confidence,
-                  label: 'Potential Wrinkle (Row $confRow)',
+                  label: 'Wrinkle',
                   color: Colors.orange,
                 ));
 
