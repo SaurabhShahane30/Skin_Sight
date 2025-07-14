@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -218,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 30),
                           Center(
                             child: RichText(
-                              text: const TextSpan(
+                              text: TextSpan(
                                 text: "Don't have an account? ",
                                 style: TextStyle(color: Colors.black),
                                 children: [
@@ -228,6 +229,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       color: Color(0xFFE1709A),
                                       fontWeight: FontWeight.bold,
                                     ),
+                                    recognizer: TapGestureRecognizer()
+                                      ..onTap = () {
+                                        Navigator.pushNamed(context, '/signup');
+                                        print("Tapped");
+                                      },
                                   ),
                                 ],
                               ),

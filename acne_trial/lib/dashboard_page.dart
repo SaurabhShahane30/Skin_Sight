@@ -23,9 +23,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   BluetoothAdapterState _bluetoothState = BluetoothAdapterState.unknown;
   bool _isBluetoothConnected = false;
   String _targetDeviceName =
-      "Sonali's M55"; // Replace with your specific device name
+      "Aarya's A23"; // Replace with your specific device name
   String _targetDeviceAddress =
-      "A8:BA:69:66:C3:83"; // Replace with your device MAC address
+      "D0:39:FA:9C:62:E3"; // Replace with your device MAC address
   BluetoothDevice? _connectedDevice;
   BluetoothCharacteristic? _writeCharacteristic;
   BluetoothCharacteristic? _readCharacteristic;
@@ -573,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
 
-  void _navigateToDetection(String modelKey) {
+  void _navigateToDetection(String modelKey, String iconPath) {
     if (_receivedImagePath != null) {
       final imageFile = File(_receivedImagePath!);
       Navigator.push(
@@ -582,6 +582,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           builder: (context) => DetectionScreen(
             modelKey: modelKey,
             imagePath: imageFile,
+            iconAssetPath: iconPath, // ✅ pass it here
           ),
         ),
       );
@@ -591,6 +592,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
   }
+
 
 
   @override
@@ -1086,10 +1088,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 shrinkWrap: true, // ✅ Prevent overflow
                                 physics: NeverScrollableScrollPhysics(),
                                 children: [
-                                  _buildAnalysisOption('Acne', Icons.face_outlined, () => _navigateToDetection('acne')),
-                                  _buildAnalysisOption('Dark spots', Icons.circle_outlined, () => _navigateToDetection('dark_spots')),
-                                  _buildAnalysisOption('Moisture', Icons.water_drop_outlined, () => _navigateToDetection('oily_skin')),
-                                  _buildAnalysisOption('Wrinkles', Icons.face_retouching_natural_outlined, () => _navigateToDetection('wrinkle')),
+                                  _buildAnalysisOption('Acne', 'assets/images/acne.png', () => _navigateToDetection('acne', 'assets/images/acne.png')),
+                                  _buildAnalysisOption('Dark spots', 'assets/images/darkspots.png', () => _navigateToDetection('dark_spots', 'assets/images/darkspots.png')),
+                                  _buildAnalysisOption('Moisture', 'assets/images/oily.png', () => _navigateToDetection('oily_skin', 'assets/images/oily.png')),
+                                  _buildAnalysisOption('Wrinkles', 'assets/images/wrinkles.png', () => _navigateToDetection('wrinkle', 'assets/images/wrinkles.png')),
                                 ],
 
                               ),
@@ -1155,7 +1157,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAnalysisOption(String title, IconData icon, VoidCallback onTap) {
+  Widget _buildAnalysisOption(String title,  String iconAssetPath , VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1168,7 +1170,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Color(0xFFD17A7A)),
+            Image.asset(
+              iconAssetPath,
+              height: 49,
+              width: 49,
+              color: Color(0xFFD17A7A), // Optional tint; remove if full-color icon
+            ),
             SizedBox(height: 12),
             Text(
               title,

@@ -20,7 +20,7 @@ class ModelManager {
     _modelConfigs['acne'] = ModelConfig(
       name: 'acne',
       assetPath: 'assets/acne_float16.tflite',
-      displayName: 'Acne Detection',
+      displayName: 'Acne',
       primaryColor: Colors.red,
       icon: Icons.warning,
       outputShape: [1, 5, 8400],
@@ -34,7 +34,7 @@ class ModelManager {
     _modelConfigs['wrinkle'] = ModelConfig(
       name: 'wrinkle',
       assetPath: 'assets/wrinkles_model_v8s_float16.tflite',
-      displayName: 'Wrinkle Detection',
+      displayName: 'Wrinkle ',
       primaryColor: Colors.orange,
       icon: Icons.face,
       outputShape: [1, 20, 8400],
@@ -52,7 +52,7 @@ class ModelManager {
     _modelConfigs['dark_spots'] = ModelConfig(
       name: 'dark_spots',
       assetPath: 'assets/darkspot2_float16.tflite',
-      displayName: 'Dark Spots Detection',
+      displayName: 'Dark Spots',
       primaryColor: Colors.purple,
       icon: Icons.brightness_2,
       outputShape: [1, 5, 8400], // Assuming 3 classes: mild, moderate, severe
@@ -69,7 +69,7 @@ class ModelManager {
     _modelConfigs['oily_skin']  = ModelConfig(
       name: 'oily_skin',
       assetPath: 'assets/oily_float16.tflite',
-      displayName: 'Skin Type Classification',
+      displayName: 'Skin Type',
       primaryColor: Colors.blueGrey,
       icon: Icons.water_drop,
       outputShape: [9, 4], // 4 classes
@@ -153,10 +153,12 @@ void _clearTempImages() async {
 class DetectionScreen extends StatefulWidget {
   final String modelKey;
   final File imagePath; // 📸 image taken on Home Page
+  final String iconAssetPath;
 
   DetectionScreen({
     required this.modelKey,
     required this.imagePath,
+    required this.iconAssetPath,
   });
 
   @override
@@ -175,6 +177,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
   ModelConfig? get _modelConfig => ModelManager.getModelConfig(widget.modelKey);
 
   String get _title => _modelConfig?.displayName ?? 'Detection';
+
+
   Color get _primaryColor => _modelConfig?.primaryColor ?? Colors.blue;
 
   @override
@@ -326,12 +330,13 @@ class _DetectionScreenState extends State<DetectionScreen> {
     setState(() {
       _isProcessing = true;
       _status = 'Analyzing image...';
-      _annotatedImage=null;
+      _annotatedImage = null;
     });
 
     try {
       final detections = await _performDetection(_selectedImage!);
-      final annotatedImage = await _createAnnotatedImage(_selectedImage!, detections);
+      final annotatedImage = await _createAnnotatedImage(
+          _selectedImage!, detections);
 
       setState(() {
         _detections = detections;
@@ -377,10 +382,11 @@ class _DetectionScreenState extends State<DetectionScreen> {
       // Detection output (e.g. [1, 5, 8400])
       output = List.generate(
           config.outputShape[0],
-              (_) => List.generate(
-              config.outputShape[1],
-                  (_) => List.filled(config.outputShape[2], 0.0)
-          )
+              (_) =>
+              List.generate(
+                  config.outputShape[1],
+                      (_) => List.filled(config.outputShape[2], 0.0)
+              )
       );
     } else if (config.outputShape.length == 2) {
       // Classification output (e.g. [1, 4])
@@ -397,7 +403,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
     interpreter.run(input, output);
 
     // Parse detections using the model's specific parser
-    final detections = config.parser.parseOutput(output, origWidth, origHeight, config);
+    final detections = config.parser.parseOutput(
+        output, origWidth, origHeight, config);
 
     // Apply Non-Maximum Suppression
     return _applyNMS(detections);
@@ -424,7 +431,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
     return input;
   }
 
-  List<Detection> _applyNMS(List<Detection> detections, {double iouThreshold = 0.4}) {
+  List<Detection> _applyNMS(List<Detection> detections,
+      {double iouThreshold = 0.4}) {
     detections.sort((a, b) => b.confidence.compareTo(a.confidence));
 
     final finalDetections = <Detection>[];
@@ -460,7 +468,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
     return unionArea > 0 ? interArea / unionArea : 0;
   }
 
-  Future<File?> _createAnnotatedImage(File originalFile, List<Detection> detections) async {
+  Future<File?> _createAnnotatedImage(File originalFile,
+      List<Detection> detections) async {
     final bytes = await originalFile.readAsBytes();
     img.Image? image = img.decodeImage(bytes);
 
@@ -476,7 +485,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
         y1: math.max(0, detection.y.toInt()),
         x2: math.min(image.width, (detection.x + detection.width).toInt()),
         y2: math.min(image.height, (detection.y + detection.height).toInt()),
-        color: img.ColorRgb8(detection.color.red, detection.color.green, detection.color.blue),
+        color: img.ColorRgb8(
+            detection.color.red, detection.color.green, detection.color.blue),
         thickness: 35,
       );
     }
@@ -484,8 +494,11 @@ class _DetectionScreenState extends State<DetectionScreen> {
     // ✅ Use unique filename
     final annotatedBytes = Uint8List.fromList(img.encodePng(image));
     final tempDir = Directory.systemTemp;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final tempPath = '${tempDir.path}/annotated_$timestamp.png'; // 👈 Unique name
+    final timestamp = DateTime
+        .now()
+        .millisecondsSinceEpoch;
+    final tempPath = '${tempDir
+        .path}/annotated_$timestamp.png'; // 👈 Unique name
     final tempFile = await File(tempPath).writeAsBytes(annotatedBytes);
 
     final fileSizeKB = await tempFile.length() / 1024;
@@ -497,7 +510,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
 
   String _getResultMessage(int count) {
     if (count == 0) {
-      return 'No ${_modelConfig?.name ?? 'issues'} detected! Your skin looks great.';
+      return 'No ${_modelConfig?.name ??
+          'issues'} detected! Your skin looks great.';
     } else {
       final itemName = _modelConfig?.name ?? 'issue';
       final plural = count == 1 ? itemName : '${itemName}s';
@@ -508,12 +522,12 @@ class _DetectionScreenState extends State<DetectionScreen> {
   String _getSkinTypeHeading() {
     if (_modelConfig?.name == 'oily_skin' && _detections.isNotEmpty) {
       final label = _detections.first.label;
-      return 'Detected Skin Type: ${label[0].toUpperCase()}${label.substring(1)}';
+      return 'Detected Skin Type: ${label[0].toUpperCase()}${label.substring(
+          1)}';
     } else {
       return _getResultMessage(_detections.length);
     }
   }
-
 
 
   String _generateSkinSummary() {
@@ -539,11 +553,14 @@ class _DetectionScreenState extends State<DetectionScreen> {
     int acneCount = counts['acne'] ?? 0;
     if (acneCount > 0) {
       if (acneCount < 5) {
-        summary.writeln('Mild acne detected ($acneCount spots). Consider using a gentle cleanser and non-comedogenic moisturizer.');
+        summary.writeln(
+            'Mild acne detected ($acneCount spots). Consider using a gentle cleanser and non-comedogenic moisturizer.');
       } else if (acneCount < 15) {
-        summary.writeln('Moderate acne detected ($acneCount spots). You may benefit from salicylic acid or benzoyl peroxide treatments.');
+        summary.writeln(
+            'Moderate acne detected ($acneCount spots). You may benefit from salicylic acid or benzoyl peroxide treatments.');
       } else {
-        summary.writeln('Severe acne detected ($acneCount spots). It’s recommended to consult a dermatologist for tailored treatment.');
+        summary.writeln(
+            'Severe acne detected ($acneCount spots). It’s recommended to consult a dermatologist for tailored treatment.');
       }
     }
 
@@ -551,14 +568,16 @@ class _DetectionScreenState extends State<DetectionScreen> {
     int wrinkleCount = counts['wrinkle'] ?? 0;
     if (wrinkleCount > 0) {
       if (wrinkleCount < 5) {
-        summary.writeln('Mild wrinkles detected ($wrinkleCount lines). Early signs of aging are visible—use a daily moisturizer and apply SPF regularly to slow progression.');
+        summary.writeln(
+            'Mild wrinkles detected ($wrinkleCount lines). Early signs of aging are visible—use a daily moisturizer and apply SPF regularly to slow progression.');
       } else if (wrinkleCount < 15) {
-        summary.writeln('Moderate wrinkles detected ($wrinkleCount lines). Consider incorporating retinol or peptide-based creams into your nighttime routine.');
+        summary.writeln(
+            'Moderate wrinkles detected ($wrinkleCount lines). Consider incorporating retinol or peptide-based creams into your nighttime routine.');
       } else {
-        summary.writeln('Severe wrinkles detected ($wrinkleCount lines). You may benefit from consulting a dermatologist for advanced treatments like chemical peels or microneedling.');
+        summary.writeln(
+            'Severe wrinkles detected ($wrinkleCount lines). You may benefit from consulting a dermatologist for advanced treatments like chemical peels or microneedling.');
       }
     }
-
 
 
     // Dark spot-specific example
@@ -587,7 +606,6 @@ class _DetectionScreenState extends State<DetectionScreen> {
         oilySkinDetection = d;
         break;
       }
-
     }
 
 
@@ -597,20 +615,23 @@ class _DetectionScreenState extends State<DetectionScreen> {
 
       switch (label) {
         case 'dry':
-          summary.writeln('Your skin is classified as Dry ($conf% confidence). Use hydrating moisturizers, avoid alcohol-based products, and apply a gentle cleanser.');
+          summary.writeln(
+              'Your skin is classified as Dry ($conf% confidence). Use hydrating moisturizers, avoid alcohol-based products, and apply a gentle cleanser.');
           break;
         case 'normal':
-          summary.writeln('Your skin is classified as Normal ($conf% confidence). Maintain your routine with mild products to keep it balanced and healthy.');
+          summary.writeln(
+              'Your skin is classified as Normal ($conf% confidence). Maintain your routine with mild products to keep it balanced and healthy.');
           break;
         case 'oily':
-          summary.writeln('Your skin is classified as Oily ($conf% confidence). Consider using non-comedogenic products, mattifying moisturizers, and cleansing twice daily.');
+          summary.writeln(
+              'Your skin is classified as Oily ($conf% confidence). Consider using non-comedogenic products, mattifying moisturizers, and cleansing twice daily.');
           break;
         case 'sensitive':
-          summary.writeln('Your skin is classified as Sensitive ($conf% confidence). Use fragrance-free, hypoallergenic products and avoid harsh exfoliants.');
+          summary.writeln(
+              'Your skin is classified as Sensitive ($conf% confidence). Use fragrance-free, hypoallergenic products and avoid harsh exfoliants.');
           break;
       }
     }
-
 
 
     return summary.toString().trim();
@@ -620,208 +641,177 @@ class _DetectionScreenState extends State<DetectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_title),
-        backgroundColor: _primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Image display area
-            Container(
-              width: double.infinity,
-              height: 300,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+      backgroundColor: Color(0xFFFDF0D1), // Adjust based on your theme
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Custom Header (instead of AppBar)
+              Row(
+                children: [
+                  Transform.rotate(
+                    angle: 3.1416, // 180 degrees in radians (π)
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: Image.asset(
+                        'assets/images/arrow.png',
+                        height: 28,
+                        width: 28,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 20),
+                  Image.asset(
+                    widget.iconAssetPath, // ✅ use from widget
+                    height: 50,
+                    width: 50,
+                  ),
+                  SizedBox(width: 50),
+                  Text(
+                    _title,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
               ),
-              child: _annotatedImage != null
-                  ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  _annotatedImage!,
-                  fit: BoxFit.contain,
+              SizedBox(height: 20),
+
+              // Image display area
+              Container(
+                margin: EdgeInsets.only(bottom: 40),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFFBD5488).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
                 ),
-              )
-                  : _selectedImage != null
-                  ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  _selectedImage!,
-                  fit: BoxFit.contain,
+                child: _annotatedImage != null
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _annotatedImage!,
+                    fit: BoxFit.contain,
+                  ),
+                )
+                    : _selectedImage != null
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _selectedImage!,
+                    fit: BoxFit.contain,
+                  ),
+                )
+                    : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _modelConfig?.icon ?? Icons.image,
+                        size: 64,
+                        color: Colors.grey.shade400,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'No image selected',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )
-                  : Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              ),
+              SizedBox(height: 20),
+
+              // Spacer for future buttons if needed
+              SizedBox(height: 16),
+
+              // Results summary container
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(20),
+                margin: EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.pink.shade100),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.pink.shade50,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: _detectionInProgress
+                    ? Column(
                   children: [
-                    Icon(
-                      _modelConfig?.icon ?? Icons.image,
-                      size: 64,
-                      color: Colors.grey.shade400,
+                    Text(
+                      "Analyzing skin... Please wait.",
+                      style:
+                      TextStyle(fontSize: 16, color: Colors.grey[700]),
+                    ),
+                    SizedBox(height: 10),
+                    CircularProgressIndicator(),
+                  ],
+                )
+                    : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Text(
+                        _getSkinTypeHeading(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Divider(thickness: 1.2, color: Colors.grey.shade300),
+                    SizedBox(height: 12),
+                    Text(
+                      'Summary',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.pink.shade400,
+                      ),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'No image selected',
+                      _generateSkinSummary(),
                       style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 16,
+                        fontSize: 14,
+                        color: Colors.grey.shade800,
+                        height: 1.5,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            SizedBox(height: 20),
-
-            // Action buttons
-            // Row(
-            //   children: [
-            //     Expanded(
-            //       child: ElevatedButton.icon(
-            //         onPressed: _pickImage,
-            //         icon: Icon(Icons.photo_library),
-            //         label: Text('Gallery'),
-            //         style: ElevatedButton.styleFrom(
-            //           backgroundColor: Colors.blue,
-            //           foregroundColor: Colors.white,
-            //           padding: EdgeInsets.symmetric(vertical: 12),
-            //         ),
-            //       ),
-            //     ),
-            //     SizedBox(width: 8),
-            //     Expanded(
-            //       child: ElevatedButton.icon(
-            //         onPressed: _takePhoto,
-            //         icon: Icon(Icons.camera_alt),
-            //         label: Text('Camera'),
-            //         style: ElevatedButton.styleFrom(
-            //           backgroundColor: Colors.green,
-            //           foregroundColor: Colors.white,
-            //           padding: EdgeInsets.symmetric(vertical: 12),
-            //         ),
-            //       ),
-            //     ),
-            //     SizedBox(width: 8),
-            //     Expanded(
-            //       child: ElevatedButton.icon(
-            //         onPressed: _loadBluetoothImage,
-            //         icon: Icon(Icons.bluetooth),
-            //         label: Text('Bluetooth'),
-            //         style: ElevatedButton.styleFrom(
-            //           backgroundColor: Colors.indigo,
-            //           foregroundColor: Colors.white,
-            //           padding: EdgeInsets.symmetric(vertical: 12),
-            //         ),
-            //       ),
-            //     ),
-            //   ],
-            // ),
-
-
-            SizedBox(height: 16),
-            //
-            // // Analyze button
-            // Container(
-            //   width: double.infinity,
-            //   child: ElevatedButton.icon(
-            //     onPressed: _selectedImage != null && !_isProcessing ? _runDetection : null,
-            //     icon: _isProcessing
-            //         ? SizedBox(
-            //       width: 20,
-            //       height: 20,
-            //       child: CircularProgressIndicator(
-            //         strokeWidth: 2,
-            //         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            //       ),
-            //     )
-            //         : Icon(Icons.analytics),
-            //     label: Text(_isProcessing ? 'Analyzing...' : 'Analyze Image'),
-            //     style: ElevatedButton.styleFrom(
-            //       backgroundColor: _primaryColor,
-            //       foregroundColor: Colors.white,
-            //       padding: EdgeInsets.symmetric(vertical: 16),
-            //       textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            //     ),
-            //   ),
-            // ),
-
-            SizedBox(height: 20),
-
-            // Status and results
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(20),
-              margin: EdgeInsets.only(top: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.pink.shade100),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.pink.shade50,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: _detectionInProgress
-                  ? Column(
-                children: [
-                  Text(
-                    "Analyzing skin... Please wait.",
-                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                  ),
-                  SizedBox(height: 10),
-                  CircularProgressIndicator(),
-                ],
-              )
-                  :Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      _getSkinTypeHeading(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Divider(thickness: 1.2, color: Colors.grey.shade300),
-                  SizedBox(height: 12),
-                  Text(
-                    'Summary',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.pink.shade400,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _generateSkinSummary(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade800,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
 
 // // Model selection screen
 // class ModelSelectionScreen extends StatelessWidget {
