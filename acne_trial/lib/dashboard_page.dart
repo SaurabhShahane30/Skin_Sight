@@ -9,12 +9,15 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  String? userName;
   bool _isLoading = true;
   String _loadingStatus = 'Initializing AI models...';
   late AnimationController _animationController;
@@ -51,7 +54,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     )..repeat();
     _initializeModels();
     _initializeBluetooth();
+    _loadUserName();
   }
+
+  Future<void> _loadUserName() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId != null) {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('name')
+          .eq('id', userId)
+          .single();
+
+      setState(() {
+        userName = profile['name'] ?? 'User';
+      });
+    }
+  }
+  String capitalizeName(String name) {
+    return name.split(' ').map((e) => e[0].toUpperCase() + e.substring(1)).join(' ');
+  }
+
 
   Future<void> _initializeModels() async {
     try {
@@ -686,8 +710,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             ),
                             Text(
-                              'Aarya\nGharmalkar',
-                              style: TextStyle(
+                              userName ?? '',
+                              style: const TextStyle(
                                 fontSize: 25,
                                 color: Color(0xFFD17A7A),
                                 fontWeight: FontWeight.bold,

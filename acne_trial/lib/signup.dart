@@ -34,32 +34,33 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Sign up with Supabase
       final response = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        data: {'name': _nameController.text.trim()},
       );
 
-      if (response.user != null) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Account created successfully! Please check your email for verification.',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
+      final userId = response.user?.id;
 
-        // Navigate to login or home page
-        // Navigator.pushReplacementNamed(context, '/login');
+      // ✅ Insert into profiles table
+      if (userId != null) {
+        await supabase.from('profiles').insert({
+          'id': userId,
+          'name': _nameController.text.trim(),
+        });
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created! Please verify your email.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Optionally navigate
+      // Navigator.pushReplacementNamed(context, '/login');
     } on AuthException catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.message), backgroundColor: Colors.red),
@@ -67,16 +68,15 @@ class _SignupPageState extends State<SignupPage> {
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('An unexpected error occurred: $error'),
+          content: Text('Unexpected error: $error'),
           backgroundColor: Colors.red,
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
