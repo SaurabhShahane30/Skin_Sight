@@ -1,3 +1,4 @@
+import 'package:acne_trial/HistoryPage.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,98 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+class MainScreen extends StatefulWidget {
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = [
+    HomeScreen(),       // Full home UI with Bluetooth
+    Center(
+      child: Text(
+        'Settings Page Coming Soon',
+        style: TextStyle(fontSize: 18, color: Colors.grey),
+      ),
+    ),
+    HistoryPage(),      // Scan history page
+
+    // 👇 Inline placeholder without separate widget class
+    Center(
+      child: Text(
+        'Profile Page Coming Soon',
+        style: TextStyle(fontSize: 18, color: Colors.grey),
+      ),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent, // ✅ Make background clear if needed
+      extendBody: true, // ✅ Allow nav bar to float over body
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9), // ✅ Keep this for the pill background
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [ // Optional: keep shadow for floating look
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(Icons.home, 'Home', 0),
+              _buildNavItem(Icons.settings, 'Settings', 1),
+              _buildNavItem(Icons.history, 'History', 2),
+              _buildNavItem(Icons.person, 'My Profile', 3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    bool isActive = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 24,
+            color: isActive ? Color(0xFFD17A7A) : Color(0xFFCCCCCC),
+          ),
+          SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isActive ? Color(0xFFD17A7A) : Color(0xFFCCCCCC),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -18,6 +111,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? userName;
+  String? profilePic;
   bool _isLoading = true;
   String _loadingStatus = 'Initializing AI models...';
   late AnimationController _animationController;
@@ -58,20 +152,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _loadUserName() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final user = Supabase.instance.client.auth.currentUser;
 
-    if (userId != null) {
+    if (user != null) {
+      // ✅ 1. Check auth.user's display name from user metadata
+      final displayName = user.userMetadata?['name'] as String?;
+      final userId = user.id;
+
+      if (displayName != null && displayName.isNotEmpty) {
+        setState(() {
+          userName = capitalizeName(displayName);
+          profilePic = user.userMetadata?['picture']; // if available
+        });
+        return; // ✅ Use this and exit early
+      }
+
+      // ✅ 2. If no displayName, check 'profiles' table fallback
       final profile = await Supabase.instance.client
           .from('profiles')
-          .select('name')
+          .select('name, profile_pic')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
       setState(() {
-        userName = profile['name'] ?? 'User';
+        userName = capitalizeName(profile?['name'] ?? 'User');
+        profilePic = profile?['profile_pic'];
       });
     }
   }
+
   String capitalizeName(String name) {
     return name.split(' ').map((e) => e[0].toUpperCase() + e.substring(1)).join(' ');
   }
@@ -722,20 +831,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Spacer(),
                         CircleAvatar(
                           radius: 25,
-                          backgroundColor: Color(0xFFD17A7A),
-                          child: Icon(
+                          backgroundColor: const Color(0xFFD17A7A),
+                          backgroundImage: profilePic != null && profilePic!.isNotEmpty
+                              ? NetworkImage(profilePic!)
+                              : null,
+                          child: profilePic == null || profilePic!.isEmpty
+                              ? const Icon(
                             Icons.person,
                             color: Colors.white,
                             size: 30,
-                          ),
+                          )
+                              : null,
                         ),
+
                       ],
                     ),
                   ],
                 ),
               ),
 
-              // Main content area
               // Main content area
               SizedBox(height: 40),
               Expanded(
@@ -1127,32 +1241,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-
-              // Bottom navigation
-              Container(
-                margin: EdgeInsets.all(20),
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildNavItem(Icons.home, 'Home', true),
-                    _buildNavItem(Icons.settings, 'Settings', false),
-                    _buildNavItem(Icons.history, 'History', false),
-                    _buildNavItem(Icons.person, 'My Profile', false),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -1160,26 +1248,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, bool isActive) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 24,
-          color: isActive ? Color(0xFFD17A7A) : Color(0xFFCCCCCC),
-        ),
-        SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isActive ? Color(0xFFD17A7A) : Color(0xFFCCCCCC),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildAnalysisOption(String title,  String iconAssetPath , VoidCallback onTap) {
     return GestureDetector(

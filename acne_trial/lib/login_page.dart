@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,8 +15,55 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscureText = true;
   bool _isLoading = false;
+  GoogleSignInAccount? _googleUser;
+
 
   final supabase = Supabase.instance.client;
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    GoogleSignIn.instance.authenticationEvents.listen((event) async {
+      if (event is GoogleSignInAuthenticationEventSignIn) {
+        setState(() {
+          _googleUser = event.user;
+        });
+
+        final googleAuth = await _googleUser!.authentication;
+
+        // Sign in to Supabase
+        final response = await Supabase.instance.client.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: googleAuth.idToken!,
+        );
+
+        if (response.user != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Signed in with Google'), backgroundColor: Colors.green),
+          );
+          Navigator.pushNamed(context, '/main');
+        }
+      }
+    });
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    try {
+      await GoogleSignIn.instance.authenticate();
+    } catch (e) {
+      print('Google Sign-In failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google Sign-In failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+
+
+
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
@@ -47,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pushNamed(context, '/home');
+        Navigator.pushNamed(context, '/main');
       }
     } on AuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -240,10 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(30),
-                              onTap: () {
-                                print('Google Sign-In tapped');
-                                // TODO: Handle Google Sign-In
-                              },
+                              onTap: _signInWithGoogle,
                               child: Container(
                                 height: 48,
                                 decoration: BoxDecoration(

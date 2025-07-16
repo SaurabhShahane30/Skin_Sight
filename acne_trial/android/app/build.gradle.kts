@@ -45,3 +45,14 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Google Sign-In dependencies
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("com.google.android.gms:play-services-base:18.2.0")
+
+    // Other common dependencies
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+}

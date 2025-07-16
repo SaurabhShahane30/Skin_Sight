@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as path;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'Model_Classes.dart';
 
+final supabase = Supabase.instance.client;
 
 
 
@@ -331,6 +335,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
       _isProcessing = true;
       _status = 'Analyzing image...';
       _annotatedImage = null;
+      _detectionInProgress = true;
     });
 
     try {
@@ -343,7 +348,56 @@ class _DetectionScreenState extends State<DetectionScreen> {
         _annotatedImage = annotatedImage;
         _status = _getResultMessage(detections.length);
         _isProcessing = false;
+        _detectionInProgress = false;
       });
+      final user = supabase.auth.currentUser;
+      if (user != null && _selectedImage != null && _modelConfig != null) {
+        final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}_${path.basename(_selectedImage!.path)}';
+        final filePath = 'user_scans/$fileName';
+        final fileBytes = await _selectedImage!.readAsBytes();
+
+        try {
+          // Upload to Supabase Storage (throws on error)
+          await supabase.storage
+              .from('scans')
+              .uploadBinary(
+            filePath,
+            fileBytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+          // Get Public URL
+          final publicUrl = supabase.storage
+              .from('scans')
+              .getPublicUrl(filePath);
+
+          // Insert into scan_history table
+          final summary = _generateSkinSummary();
+          final insertResponse = await supabase.from('scan_history').insert({
+            'user_id': user.id,
+            'model_key': widget.modelKey,
+            'scan_type': _modelConfig?.displayName,  // or key
+            'analysis': _getResultMessage(detections.length),
+            'summary': _generateSkinSummary(),
+            'image_url': publicUrl,
+            'created_at': DateTime.now().toIso8601String(),
+          }).select();
+
+
+          if (insertResponse == null) {
+            print("❌ No response from insert");
+          } else {
+            print("✅ Insert response: $insertResponse");
+          }
+
+
+          print("✅ Upload and DB insert successful");
+
+        } catch (e) {
+          print("❌ Upload failed: $e");
+        }
+      }
+
     } catch (e) {
       setState(() {
         _status = 'Error during analysis: $e';

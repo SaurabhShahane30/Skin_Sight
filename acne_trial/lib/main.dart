@@ -1,6 +1,8 @@
+import 'package:acne_trial/HistoryPage.dart';
 import 'package:acne_trial/signup.dart';
 import 'package:acne_trial/splash_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dashboard_page.dart';
 import 'intro1.dart';
@@ -11,11 +13,16 @@ import 'login_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Supabase
   await Supabase.initialize(
     url: 'https://fbdbfpokalxnzlrhyqdx.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZGJmcG9rYWx4bnpscmh5cWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0ODUwMjMsImV4cCI6MjA2ODA2MTAyM30.vfWKOrsqGSCjrjq5JTq2YFFZiLbjSC_YQ4Rim8CN8S0',
   );
 
+  // Initialize Google Sign-In
+  await GoogleSignIn.instance.initialize(
+    serverClientId: '1024003180713-rg9u53h5v45bmmf45oineqq7nq5vn7pa.apps.googleusercontent.com', // Replace with real one from Firebase Console
+  );
 
   runApp(MyApp());
 }
@@ -41,7 +48,7 @@ class MyApp extends StatelessWidget {
     '/intro3': (_) => const Intro3Screen(),
     '/login': (_) => const LoginScreen(),
       '/signup': (_) => const SignupPage(),
-    '/home': (_) => HomeScreen(),
+      '/main': (_) =>  MainScreen(),
 
     },
     );
