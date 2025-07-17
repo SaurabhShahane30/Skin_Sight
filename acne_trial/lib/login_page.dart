@@ -25,34 +25,35 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    GoogleSignIn.instance.authenticationEvents.listen((event) async {
-      if (event is GoogleSignInAuthenticationEventSignIn) {
-        setState(() {
-          _googleUser = event.user;
-        });
-
-        final googleAuth = await _googleUser!.authentication;
-
-        // Sign in to Supabase
-        final response = await Supabase.instance.client.auth.signInWithIdToken(
-          provider: OAuthProvider.google,
-          idToken: googleAuth.idToken!,
-        );
-
-        if (response.user != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Signed in with Google'), backgroundColor: Colors.green),
-          );
-          Navigator.pushNamed(context, '/main');
-        }
-      }
-    });
   }
 
 
   Future<void> _signInWithGoogle() async {
     try {
-      await GoogleSignIn.instance.authenticate();
+      final account = await GoogleSignIn.instance.authenticate();
+
+      if (account == null) {
+        // User canceled the sign-in
+        return;
+      }
+
+      final googleAuth = await account.authentication;
+
+      final response = await Supabase.instance.client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+      );
+
+      if (response.user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Signed in with Google'), backgroundColor: Colors.green),
+        );
+        Navigator.pushNamed(context, '/main');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google sign-in failed'), backgroundColor: Colors.red),
+        );
+      }
     } catch (e) {
       print('Google Sign-In failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,6 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
+
 
 
 
