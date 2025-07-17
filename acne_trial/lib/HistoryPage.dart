@@ -1,6 +1,9 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
+
 
 
 class HistoryPage extends StatefulWidget {
@@ -30,6 +33,28 @@ class _HistoryPageState extends State<HistoryPage> {
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(data);
+  }
+
+  List<FlSpot> _generateTrendSpots(List<Map<String, dynamic>> scans, String scanType) {
+    List<FlSpot> spots = [];
+
+    for (int i = 0; i < scans.length; i++) {
+      final scan = scans[i];
+      final type = scan['scan_type']?.toLowerCase();
+      final analysis = scan['analysis'] ?? '';
+
+      if (type == scanType.toLowerCase()) {
+        final match = RegExp(r'\d+').firstMatch(analysis);
+        if (match != null) {
+          final count = int.tryParse(match.group(0)!);
+          if (count != null) {
+            spots.add(FlSpot(i.toDouble(), count.toDouble()));
+          }
+        }
+      }
+    }
+
+    return spots;
   }
 
 
@@ -72,6 +97,115 @@ class _HistoryPageState extends State<HistoryPage> {
                   ],
                 ),
               ),
+              Container(
+                height: 240,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 6,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _futureHistory,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(child: Text("No data to display trend."));
+                    }
+
+                    final scans = snapshot.data!;
+                    final acneSpots = _generateTrendSpots(scans, 'Acne');
+                    final wrinkleSpots = _generateTrendSpots(scans, 'Wrinkle');
+                    final darkSpotSpots = _generateTrendSpots(scans, 'Dark Spot');
+
+                    // Calculate max Y from all spot types
+                    final allYValues = [
+                      ...acneSpots.map((e) => e.y),
+                      ...wrinkleSpots.map((e) => e.y),
+                      ...darkSpotSpots.map((e) => e.y),
+                    ];
+
+                    final double maxY = allYValues.isEmpty ? 5.0 : allYValues.reduce(max) + 1;
+
+
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Acne Trend",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: LineChart(
+                            LineChartData(
+                              minY: 0,
+                              maxY: maxY,
+                              titlesData: FlTitlesData(
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                      interval: 1, // Show label every 1 index (can increase to 2 if still cluttered)
+                                      reservedSize: 30, // Adjust space
+                                      getTitlesWidget: (value, meta) {
+                                        final index = value.toInt();
+                                        if (index >= 0 && index < scans.length) {
+                                          final date = DateTime.parse(scans[index]['created_at']);
+                                          return Text(DateFormat('MM/dd').format(date), style: TextStyle(fontSize: 10));
+                                        }
+                                        return Text('');
+                                      }
+
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: true),
+                                ),
+                                topTitles: AxisTitles(),
+                                rightTitles: AxisTitles(),
+                              ),
+                              gridData: FlGridData(show: true),
+                              borderData: FlBorderData(show: true),
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: acneSpots,
+                                  isCurved: true,
+                                  color: Colors.pink,
+                                  barWidth: 2,
+                                  dotData: FlDotData(show: true),
+                                ),
+                                LineChartBarData(
+                                  spots: wrinkleSpots,
+                                  isCurved: true,
+                                  color: Colors.blue,
+                                  barWidth: 2,
+                                  dotData: FlDotData(show: true),
+                                ),
+                                LineChartBarData(
+                                  spots: darkSpotSpots,
+                                  isCurved: true,
+                                  color: Colors.purple,
+                                  barWidth: 2,
+                                  dotData: FlDotData(show: true),
+                                ),
+                              ],
+
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+
 
               // 🔄 Scan History List (FutureBuilder inside Expanded)
               Expanded(
