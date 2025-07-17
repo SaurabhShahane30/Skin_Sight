@@ -13,6 +13,8 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   late Future<List<Map<String, dynamic>>> _futureHistory;
+  String selectedType = 'All'; // Options: All, Acne, Wrinkle, Dark Spot
+
 
   @override
   void initState() {
@@ -138,9 +140,28 @@ class _HistoryPageState extends State<HistoryPage> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Acne Trend",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Trend",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            DropdownButton<String>(
+                              value: selectedType,
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedType = value!;
+                                });
+                              },
+                              items: ['All', 'Acne', 'Wrinkle', 'Dark Spot']
+                                  .map((type) => DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              ))
+                                  .toList(),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 10),
                         Expanded(
@@ -152,17 +173,16 @@ class _HistoryPageState extends State<HistoryPage> {
                                 bottomTitles: AxisTitles(
                                   sideTitles: SideTitles(
                                     showTitles: true,
-                                      interval: 1, // Show label every 1 index (can increase to 2 if still cluttered)
-                                      reservedSize: 30, // Adjust space
-                                      getTitlesWidget: (value, meta) {
-                                        final index = value.toInt();
-                                        if (index >= 0 && index < scans.length) {
-                                          final date = DateTime.parse(scans[index]['created_at']);
-                                          return Text(DateFormat('MM/dd').format(date), style: TextStyle(fontSize: 10));
-                                        }
-                                        return Text('');
+                                    interval: 1,
+                                    reservedSize: 30,
+                                    getTitlesWidget: (value, meta) {
+                                      final index = value.toInt();
+                                      if (index >= 0 && index < scans.length) {
+                                        final date = DateTime.parse(scans[index]['created_at']);
+                                        return Text(DateFormat('MM/dd').format(date), style: TextStyle(fontSize: 10));
                                       }
-
+                                      return Text('');
+                                    },
                                   ),
                                 ),
                                 leftTitles: AxisTitles(
@@ -174,29 +194,31 @@ class _HistoryPageState extends State<HistoryPage> {
                               gridData: FlGridData(show: true),
                               borderData: FlBorderData(show: true),
                               lineBarsData: [
-                                LineChartBarData(
-                                  spots: acneSpots,
-                                  isCurved: true,
-                                  color: Colors.pink,
-                                  barWidth: 2,
-                                  dotData: FlDotData(show: true),
-                                ),
-                                LineChartBarData(
-                                  spots: wrinkleSpots,
-                                  isCurved: true,
-                                  color: Colors.blue,
-                                  barWidth: 2,
-                                  dotData: FlDotData(show: true),
-                                ),
-                                LineChartBarData(
-                                  spots: darkSpotSpots,
-                                  isCurved: true,
-                                  color: Colors.purple,
-                                  barWidth: 2,
-                                  dotData: FlDotData(show: true),
-                                ),
+                                if (selectedType == 'All' || selectedType == 'Acne')
+                                  LineChartBarData(
+                                    spots: acneSpots,
+                                    isCurved: true,
+                                    color: Colors.pink,
+                                    barWidth: 2,
+                                    dotData: FlDotData(show: true),
+                                  ),
+                                if (selectedType == 'All' || selectedType == 'Wrinkle')
+                                  LineChartBarData(
+                                    spots: wrinkleSpots,
+                                    isCurved: true,
+                                    color: Colors.blue,
+                                    barWidth: 2,
+                                    dotData: FlDotData(show: true),
+                                  ),
+                                if (selectedType == 'All' || selectedType == 'Dark Spot')
+                                  LineChartBarData(
+                                    spots: darkSpotSpots,
+                                    isCurved: true,
+                                    color: Colors.purple,
+                                    barWidth: 2,
+                                    dotData: FlDotData(show: true),
+                                  ),
                               ],
-
                             ),
                           ),
                         ),
