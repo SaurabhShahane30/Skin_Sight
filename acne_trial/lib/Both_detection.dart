@@ -200,7 +200,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
       final model = ModelManager.getModel(widget.modelKey);
 
       if (model == null) {
-        print("⚠️ Model not yet loaded: ${widget.modelKey}");
+        print("⚠ Model not yet loaded: ${widget.modelKey}");
         setState(() {
           _status = 'Loading model...';
         });
@@ -782,12 +782,14 @@ class _DetectionScreenState extends State<DetectionScreen> {
                       ),
                       if (_detectionInProgress)
                         ScanningOverlay(
-                          width: MediaQuery
-                              .of(context)
-                              .size
-                              .width,
-                          height: 300,
+                          width: 300,
+                          height: 400,
+                          scanDurationSeconds: 10,
+                          onScanComplete: () {
+                            print("Done scanning!");
+                          },
                         ),
+
                     ],
                   ),
                 ),
