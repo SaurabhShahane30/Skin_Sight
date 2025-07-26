@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -20,24 +19,44 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.acne_trial"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("team-release-key.jks")
+            storePassword = "codechef"
+            keyAlias = "teamKey"
+            keyPassword = "codechef"
+        }
+
+        named("debug") { // ✅ This works safely
+            storeFile = file("team-release-key.jks")
+            storePassword = "codechef"
+            keyAlias = "teamKey"
+            keyPassword = "codechef"
+        }
+    }
+
+
+
+
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        getByName("debug") { // ✅ Use team keystore for debug builds
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
@@ -47,11 +66,9 @@ flutter {
 }
 
 dependencies {
-    // Google Sign-In dependencies
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     implementation("com.google.android.gms:play-services-base:18.2.0")
 
-    // Other common dependencies
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")

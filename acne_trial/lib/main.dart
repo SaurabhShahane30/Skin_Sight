@@ -9,6 +9,7 @@ import 'intro1.dart';
 import 'intro2.dart';
 import 'intro3.dart';
 import 'login_page.dart';
+import 'my_profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,22 +36,23 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'AI Skin Analysis Suite',
-        debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-      primarySwatch: Colors.teal,
-      visualDensity: VisualDensity.adaptivePlatformDensity,
+        primarySwatch: Colors.teal,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
         fontFamily: 'RobotoSerif',
-    ),
-        home: const Intro1Screen() ,
-    routes: {
+      ),
+      home: const Intro1Screen() ,
+      routes: {
 
-    '/intro2': (_) => const Intro2Screen(),
-    '/intro3': (_) => const Intro3Screen(),
-    '/login': (_) => const LoginScreen(),
-      '/signup': (_) => const SignupPage(),
-      '/main': (_) =>  MainScreen(),
+        '/intro2': (_) => const Intro2Screen(),
+        '/intro3': (_) => const Intro3Screen(),
+        '/login': (_) => const LoginScreen(),
+        '/signup': (_) => const SignupPage(),
+        '/main': (_) =>  MainScreen(),
+        '/profile':(_) => MyProfileScreen(),
 
-    },
+      },
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'Model_Classes.dart';
+import 'scanning_overlay.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -352,7 +353,9 @@ class _DetectionScreenState extends State<DetectionScreen> {
       });
       final user = supabase.auth.currentUser;
       if (user != null && _selectedImage != null && _modelConfig != null) {
-        final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}_${path.basename(_selectedImage!.path)}';
+        final fileName = 'scan_${DateTime
+            .now()
+            .millisecondsSinceEpoch}_${path.basename(_selectedImage!.path)}';
         final filePath = 'user_scans/$fileName';
         final fileBytes = await _selectedImage!.readAsBytes();
 
@@ -376,7 +379,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
           final insertResponse = await supabase.from('scan_history').insert({
             'user_id': user.id,
             'model_key': widget.modelKey,
-            'scan_type': _modelConfig?.displayName,  // or key
+            'scan_type': _modelConfig?.displayName, // or key
             'analysis': _getResultMessage(detections.length),
             'summary': _generateSkinSummary(),
             'image_url': publicUrl,
@@ -392,12 +395,10 @@ class _DetectionScreenState extends State<DetectionScreen> {
 
 
           print("✅ Upload and DB insert successful");
-
         } catch (e) {
           print("❌ Upload failed: $e");
         }
       }
-
     } catch (e) {
       setState(() {
         _status = 'Error during analysis: $e';
@@ -563,14 +564,18 @@ class _DetectionScreenState extends State<DetectionScreen> {
 
 
   String _getResultMessage(int count) {
+    final name = _modelConfig?.name ?? 'issue';
+
     if (count == 0) {
-      return 'No ${_modelConfig?.name ??
-          'issues'} detected! Your skin looks great.';
-    } else {
-      final itemName = _modelConfig?.name ?? 'issue';
-      final plural = count == 1 ? itemName : '${itemName}s';
-      return 'Detected $count $plural';
+      return 'No $name detected! Your skin looks great.';
     }
+
+    // Smart pluralization
+    final plural = count == 1
+        ? name
+        : name.endsWith('s') ? name : '${name}s';
+
+    return 'Detected $count $plural';
   }
 
   String _getSkinTypeHeading() {
@@ -691,22 +696,21 @@ class _DetectionScreenState extends State<DetectionScreen> {
     return summary.toString().trim();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFDF0D1), // Adjust based on your theme
+      backgroundColor: Color(0xFFFDF0D1),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Custom Header (instead of AppBar)
+              // Custom Header
               Row(
                 children: [
                   Transform.rotate(
-                    angle: 3.1416, // 180 degrees in radians (π)
+                    angle: 3.1416,
                     child: GestureDetector(
                       onTap: () {
                         Navigator.pop(context);
@@ -720,7 +724,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
                   ),
                   SizedBox(width: 20),
                   Image.asset(
-                    widget.iconAssetPath, // ✅ use from widget
+                    widget.iconAssetPath,
                     height: 50,
                     width: 50,
                   ),
@@ -737,7 +741,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
               ),
               SizedBox(height: 20),
 
-              // Image display area
+              // Image display + scanning overlay
               Container(
                 margin: EdgeInsets.only(bottom: 40),
                 decoration: BoxDecoration(
@@ -751,47 +755,43 @@ class _DetectionScreenState extends State<DetectionScreen> {
                     ),
                   ],
                 ),
-                child: _annotatedImage != null
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    _annotatedImage!,
-                    fit: BoxFit.contain,
-                  ),
-                )
-                    : _selectedImage != null
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    _selectedImage!,
-                    fit: BoxFit.contain,
-                  ),
-                )
-                    : Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _modelConfig?.icon ?? Icons.image,
-                        size: 64,
-                        color: Colors.grey.shade400,
+                child: Container(
+                  height: 300,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade300,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'No image selected',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 16,
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          _annotatedImage ?? _selectedImage!,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: double.infinity,
                         ),
                       ),
+                      if (_detectionInProgress)
+                        ScanningOverlay(
+                          width: MediaQuery
+                              .of(context)
+                              .size
+                              .width,
+                          height: 300,
+                        ),
                     ],
                   ),
                 ),
               ),
-              SizedBox(height: 20),
-
-              // Spacer for future buttons if needed
-              SizedBox(height: 16),
 
               // Results summary container
               Container(
@@ -865,6 +865,8 @@ class _DetectionScreenState extends State<DetectionScreen> {
     );
   }
 }
+
+
 
 
 // // Model selection screen

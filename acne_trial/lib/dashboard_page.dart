@@ -12,6 +12,8 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'my_profile_screen.dart';
+
 class MainScreen extends StatefulWidget {
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -22,21 +24,14 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _pages = [
     HomeScreen(),       // Full home UI with Bluetooth
-    Center(
-      child: Text(
-        'Settings Page Coming Soon',
-        style: TextStyle(fontSize: 18, color: Colors.grey),
-      ),
-    ),
+    // Center(
+    //   child: Text(
+    //     'Settings Page Coming Soon',
+    //     style: TextStyle(fontSize: 18, color: Colors.grey),
+    //   ),
+    // ),
     HistoryPage(),      // Scan history page
-
-    // 👇 Inline placeholder without separate widget class
-    Center(
-      child: Text(
-        'Profile Page Coming Soon',
-        style: TextStyle(fontSize: 18, color: Colors.grey),
-      ),
-    ),
+    MyProfileScreen(),
   ];
 
   @override
@@ -67,9 +62,9 @@ class _MainScreenState extends State<MainScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(Icons.home, 'Home', 0),
-              _buildNavItem(Icons.settings, 'Settings', 1),
-              _buildNavItem(Icons.history, 'History', 2),
-              _buildNavItem(Icons.person, 'My Profile', 3),
+              // _buildNavItem(Icons.settings, 'Settings', 1),
+              _buildNavItem(Icons.history, 'History', 1),
+              _buildNavItem(Icons.person, 'My Profile', 2),
             ],
           ),
         ),
@@ -815,7 +810,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Color(0xFF8B4B7A),
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(

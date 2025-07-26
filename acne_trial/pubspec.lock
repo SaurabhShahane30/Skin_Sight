@@ -153,6 +153,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
+  country_picker:
+    dependency: "direct main"
+    description:
+      name: country_picker
+      sha256: "9b14c04f9a35e99f6de6bcbc453a556bb98345aecb481c7a0e843c94c2bee1f8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.27"
   cross_file:
     dependency: transitive
     description:
@@ -817,7 +825,7 @@ packages:
     source: hosted
     version: "0.28.0"
   shared_preferences:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shared_preferences
       sha256: "6e8bf70b7fef813df4e9a36f658ac46d107db4b4cfe1048b477d4e453a8159f5"
@@ -973,6 +981,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_io:
+    dependency: transitive
+    description:
+      name: universal_io
+      sha256: "1722b2dcc462b4b2f3ee7d188dad008b6eb4c40bbd03a3de451d82c78bba9aad"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.2"
   url_launcher:
     dependency: transitive
     description:

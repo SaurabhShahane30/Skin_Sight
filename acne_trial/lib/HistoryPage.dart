@@ -40,24 +40,59 @@ class _HistoryPageState extends State<HistoryPage> {
   List<FlSpot> _generateTrendSpots(List<Map<String, dynamic>> scans, String scanType) {
     List<FlSpot> spots = [];
 
-    for (int i = 0; i < scans.length; i++) {
-      final scan = scans[i];
-      final type = scan['scan_type']?.toLowerCase();
-      final analysis = scan['analysis'] ?? '';
+    String normalizeAnalysis(String analysis) {
+      return analysis
+          .toLowerCase()
+          .replaceAll('_', ' ')
+          .replaceAll(RegExp(r'[^\w\s]'), '') // remove punctuation
+          .trim();
+    }
 
-      if (type == scanType.toLowerCase()) {
-        final match = RegExp(r'\d+').firstMatch(analysis);
+    for (var scan in scans) {
+      final type = scan['scan_type']?.toLowerCase();
+      final rawAnalysis = scan['analysis'] ?? '';
+      final analysis = normalizeAnalysis(rawAnalysis);
+      final createdAt = DateTime.tryParse(scan['created_at']);
+
+      if ((type ?? '').trim() == scanType.trim().toLowerCase() && createdAt != null) {
+        RegExp? regex;
+
+        print("🔍 ScanType: $scanType | Analysis: $analysis");
+
+        // Build general-purpose regex dynamically
+        if (scanType.toLowerCase() == 'acne') {
+          regex = RegExp(r'detected\s+(\d+)\s+acne');
+        } else if (scanType.toLowerCase() == 'wrinkle') {
+          regex = RegExp(r'detected\s+(\d+)\s+(wrinkles|lines)');
+        } else if (scanType.toLowerCase().contains('dark')) {
+          regex = RegExp(r'detected\s+(\d+)\s+dark\s+spots?');
+        }
+
+        final match = regex?.firstMatch(analysis);
         if (match != null) {
-          final count = int.tryParse(match.group(0)!);
+          final count = int.tryParse(match.group(1)!);
           if (count != null) {
-            spots.add(FlSpot(i.toDouble(), count.toDouble()));
+            final timestamp = createdAt.millisecondsSinceEpoch.toDouble();
+            print("📈 $scanType → $count at ${DateFormat('MM/dd HH:mm').format(createdAt)}");
+            spots.add(FlSpot(timestamp, count.toDouble()));
+          } else {
+            print("❌ Failed to parse count");
           }
+        } else if (analysis.contains('no') && analysis.contains(scanType.toLowerCase().replaceAll(' ', ''))) {
+          final timestamp = createdAt.millisecondsSinceEpoch.toDouble();
+          print("📈 $scanType → 0 at ${DateFormat('MM/dd HH:mm').format(createdAt)}");
+          spots.add(FlSpot(timestamp, 0));
+        } else {
+          print("⚠ No match found in $scanType analysis: $rawAnalysis");
         }
       }
     }
 
     return spots;
   }
+
+
+
 
 
   @override
@@ -122,19 +157,40 @@ class _HistoryPageState extends State<HistoryPage> {
                     }
 
                     final scans = snapshot.data!;
-                    final acneSpots = _generateTrendSpots(scans, 'Acne');
-                    final wrinkleSpots = _generateTrendSpots(scans, 'Wrinkle');
-                    final darkSpotSpots = _generateTrendSpots(scans, 'Dark Spot');
 
-                    // Calculate max Y from all spot types
+                    final modelKeyMap = {
+                      "Acne": "Acne",
+                      "Wrinkle": "Wrinkle",
+                      "Dark Spot": "Dark Spots",
+                      "Oily Skin": "Skin Type", // future proofing
+                    };
+
+
+                    // Generate FlSpots using timestamps for x-axis
+                    final acneSpots = _generateTrendSpots(scans, modelKeyMap['Acne']!);
+                    final wrinkleSpots = _generateTrendSpots(scans, modelKeyMap['Wrinkle']!);
+                    final darkSpotSpots = _generateTrendSpots(scans, modelKeyMap['Dark Spot']!);
+
+
+                    // ⏱ Calculate minX and maxX from timestamps (X-axis)
+                    final allTimestamps = [
+                      ...acneSpots.map((e) => e.x),
+                      ...wrinkleSpots.map((e) => e.x),
+                      ...darkSpotSpots.map((e) => e.x),
+                    ];
+
+                    final double minX = allTimestamps.isEmpty ? 0 : allTimestamps.reduce(min);
+                    final double maxX = allTimestamps.isEmpty ? 1 : allTimestamps.reduce(max) + 1000000; // 1M ms padding
+
+                    // 📈 Calculate maxY
                     final allYValues = [
                       ...acneSpots.map((e) => e.y),
                       ...wrinkleSpots.map((e) => e.y),
                       ...darkSpotSpots.map((e) => e.y),
                     ];
 
-                    final double maxY = allYValues.isEmpty ? 5.0 : allYValues.reduce(max) + 1;
-
+                    final double rawMaxY = allYValues.isEmpty ? 5.0 : allYValues.reduce(max);
+                    final double maxY = min((rawMaxY * 1.2).ceilToDouble(), rawMaxY + 5);
 
 
                     return Column(
@@ -169,19 +225,21 @@ class _HistoryPageState extends State<HistoryPage> {
                             LineChartData(
                               minY: 0,
                               maxY: maxY,
+                              minX: minX,
+                              maxX: maxX,
+                              clipData: FlClipData.all(),
                               titlesData: FlTitlesData(
                                 bottomTitles: AxisTitles(
                                   sideTitles: SideTitles(
                                     showTitles: true,
-                                    interval: 1,
+                                    interval: (maxX - minX) / 4, // Optional: 4 labels
                                     reservedSize: 30,
                                     getTitlesWidget: (value, meta) {
-                                      final index = value.toInt();
-                                      if (index >= 0 && index < scans.length) {
-                                        final date = DateTime.parse(scans[index]['created_at']);
-                                        return Text(DateFormat('MM/dd').format(date), style: TextStyle(fontSize: 10));
-                                      }
-                                      return Text('');
+                                      final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
+                                      return Text(
+                                        DateFormat('MM/dd').format(date),
+                                        style: const TextStyle(fontSize: 10),
+                                      );
                                     },
                                   ),
                                 ),
@@ -222,6 +280,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             ),
                           ),
                         ),
+
                       ],
                     );
                   },
