@@ -578,6 +578,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
     return 'Detected $count $plural';
   }
 
+
   String _getSkinTypeHeading() {
     if (_modelConfig?.name == 'oily_skin' && _detections.isNotEmpty) {
       final label = _detections.first.label;

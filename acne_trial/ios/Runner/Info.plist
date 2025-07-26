@@ -2,10 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Acne Trial</string>
+	<string>SkinSight</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -41,9 +45,36 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+	<!-- Camera access -->
+    <key>NSCameraUsageDescription</key>
+    <string>This app needs access to your camera for capturing skin photos.</string>
+
+    <!-- Photo library access -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs access to your photo library for uploading images.</string>
+
+    <!-- Bluetooth access -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>This app uses Bluetooth to receive skin images from other devices.</string>
+
+    <!-- Location access (optional, required if Bluetooth needs location on iOS) -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app uses your location to detect nearby Bluetooth devices.</string>
+
+    <!-- For Google Sign-In (optional but recommended for compatibility) -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>google</string>
+      <string>com.googleusercontent.apps.YOUR_CLIENT_ID</string> <!-- replace if using a URL scheme -->
+    </array>
+
+    <!-- Needed for image picker + image cropper (especially when using camera) -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app may request microphone access when using the camera.</string>
+
+    <!-- Optional: if you're downloading files -->
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>This app may access the Downloads folder to read skin image files.</string>
+
 </dict>
 </plist>

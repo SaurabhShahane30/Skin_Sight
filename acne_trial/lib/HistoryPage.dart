@@ -83,7 +83,7 @@ class _HistoryPageState extends State<HistoryPage> {
           print("📈 $scanType → 0 at ${DateFormat('MM/dd HH:mm').format(createdAt)}");
           spots.add(FlSpot(timestamp, 0));
         } else {
-          print("⚠ No match found in $scanType analysis: $rawAnalysis");
+          print("⚠️ No match found in $scanType analysis: $rawAnalysis");
         }
       }
     }
@@ -172,7 +172,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     final darkSpotSpots = _generateTrendSpots(scans, modelKeyMap['Dark Spot']!);
 
 
-                    // ⏱ Calculate minX and maxX from timestamps (X-axis)
+                    // ⏱️ Calculate minX and maxX from timestamps (X-axis)
                     final allTimestamps = [
                       ...acneSpots.map((e) => e.x),
                       ...wrinkleSpots.map((e) => e.x),
