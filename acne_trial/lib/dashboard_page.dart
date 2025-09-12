@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   BluetoothAdapterState _bluetoothState = BluetoothAdapterState.unknown;
   bool _isBluetoothConnected = false;
   String _targetDeviceName =
-      "Aarya's A23"; // Replace with your specific device name
+      "Aarya's A23"; // Replace with SkinSight Device
   String _targetDeviceAddress =
       "D0:39:FA:9C:62:E3"; // Replace with your device MAC address
   BluetoothDevice? _connectedDevice;
